@@ -1,0 +1,78 @@
+{
+  "groups": [
+    {
+      "name": "finagent",
+      "type": "com.finagent.config.AgentsProperties",
+      "sourceType": "com.finagent.config.AgentsProperties"
+    },
+    {
+      "name": "finagent.llm",
+      "type": "com.finagent.config.LlmProperties",
+      "sourceType": "com.finagent.config.LlmProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "finagent.llm.api-key",
+      "type": "java.lang.String",
+      "description": "API key for authentication",
+      "sourceType": "com.finagent.config.LlmProperties"
+    },
+    {
+      "name": "finagent.llm.base-url",
+      "type": "java.lang.String",
+      "description": "Base URL for the LLM API",
+      "sourceType": "com.finagent.config.LlmProperties"
+    },
+    {
+      "name": "finagent.llm.max-tokens",
+      "type": "java.lang.Integer",
+      "description": "Maximum tokens in the response",
+      "sourceType": "com.finagent.config.LlmProperties",
+      "defaultValue": 2000
+    },
+    {
+      "name": "finagent.llm.model",
+      "type": "java.lang.String",
+      "description": "Model name (e.g., gpt-3.5-turbo, gpt-4, deepseek-chat)",
+      "sourceType": "com.finagent.config.LlmProperties",
+      "defaultValue": "gpt-3.5-turbo"
+    },
+    {
+      "name": "finagent.llm.provider",
+      "type": "java.lang.String",
+      "description": "LLM provider: openai, deepseek",
+      "sourceType": "com.finagent.config.LlmProperties",
+      "defaultValue": "openai"
+    },
+    {
+      "name": "finagent.llm.temperature",
+      "type": "java.lang.Double",
+      "description": "Temperature parameter (0.0 to 2.0)",
+      "sourceType": "com.finagent.config.LlmProperties",
+      "defaultValue": 0.7
+    },
+    {
+      "name": "finagent.llm.timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Request timeout in seconds",
+      "sourceType": "com.finagent.config.LlmProperties",
+      "defaultValue": 60
+    },
+    {
+      "name": "finagent.max-turns",
+      "type": "java.lang.Integer",
+      "description": "Default maximum turns per run.",
+      "sourceType": "com.finagent.config.AgentsProperties",
+      "defaultValue": 20
+    },
+    {
+      "name": "finagent.session-store",
+      "type": "java.lang.String",
+      "description": "Session store type: memory, jdbc, redis (memory only implemented by default).",
+      "sourceType": "com.finagent.config.AgentsProperties",
+      "defaultValue": "memory"
+    }
+  ],
+  "hints": []
+}

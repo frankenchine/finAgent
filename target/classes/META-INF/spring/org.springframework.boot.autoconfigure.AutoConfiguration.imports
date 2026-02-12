@@ -1,0 +1,2 @@
+com.finagent.config.AgentsAutoConfiguration
+com.finagent.config.LlmAutoConfiguration
