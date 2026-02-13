@@ -1,6 +1,5 @@
 package com.finagent.model;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -8,8 +7,8 @@ import java.util.Map;
  * Request for a single LLM invocation. Contains messages and tool/handoff definitions for the model.
  * 核心字段：1、系统提示；2、消息列表；3、工具/手柄定义列表
  * 1、系统提示：系统提示的文本内容
- * 2、消息列表：消息列表
- * 3、tool/handoff定义列表：tool/handoff定义列表
+ * 2、消息列表：消息列表, 要传给LLM的历史消息列表
+ * 3、tool/handoff定义列表：tool/handoff定义列表，告诉LLM有哪些工具/handoff可以调用
  * 
  */
 public final class ModelInvocationRequest {

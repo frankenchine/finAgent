@@ -1,10 +1,12 @@
 package com.finagent.model;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
  * Response from a single LLM invocation. Contains assistant message and optional tool calls.
+ * 核心字段：1、大模型回复文本，后续同一成为助手文本；2、工具调用列表
+ * 1、助手文本：大模型回复文本，后续同一成为助手文本
+ * 2、工具调用列表：大模型返回的工具调用列表，如果模型返回了工具调用，则需要调用工具执行器执行工具
  */
 public final class ModelInvocationResponse {
 

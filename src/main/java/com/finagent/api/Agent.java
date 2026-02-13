@@ -5,6 +5,7 @@ import java.util.List;
 /**
  * An agent is an LLM configured with instructions, tools, handoffs, and guardrails.
  * Stateless configuration only; does not hold Runner or Session.
+ * tools handoffs inputGuardrails outputGuardrails all are agent-level configurations, 
  */
 public interface Agent {
 
