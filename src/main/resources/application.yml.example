@@ -1,3 +1,4 @@
+# Copy this file to application.yml and set your real api-key. Do not commit application.yml.
 finagent:
   llm:
     # LLM provider: openai or deepseek
@@ -6,8 +7,8 @@ finagent:
     # For OpenAI: https://api.openai.com/v1
     # For DeepSeek: https://api.deepseek.com/v1
     base-url: https://api.deepseek.com/v1
-    # API key (can be set via environment variable)
-    api-key: sk-fe788a301d084964a96cf9967fd15a37
+    # API key (set your key here or in application-local.yml; do not commit real keys)
+    api-key: your-api-key-here
     # Model name
     # OpenAI: gpt-3.5-turbo, gpt-4, gpt-4-turbo-preview, etc.
     # DeepSeek: deepseek-chat, deepseek-coder, etc.

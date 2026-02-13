@@ -1,0 +1,37 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+*.jar
+*.war
+*.ear
+*.nar
+
+# IDE - IntelliJ / Eclipse
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# IDE - VS Code (optional: remove if you want to commit workspace settings)
+.vscode/
+
+# Cursor (optional: remove if you want to commit Cursor state)
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+
+# Local config with secrets (do not commit API keys)
+application-local.yml
+# Main config may contain api-key; use application.yml.example as template
+src/main/resources/application.yml

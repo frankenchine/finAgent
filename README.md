@@ -56,6 +56,8 @@ Alternatively, you can add a `ModelInvoker` bean that wraps your `ChatModel` in 
 
 ## Configuration
 
+Copy `src/main/resources/application.yml.example` to `application.yml` in the same directory, set your LLM `api-key`, and run. Do not commit `application.yml` (it is gitignored); use the example file as the template.
+
 ```yaml
 finagent:
   max-turns: 20
