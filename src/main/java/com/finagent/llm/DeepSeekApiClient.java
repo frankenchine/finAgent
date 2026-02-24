@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * DeepSeek API client implementation.
  * DeepSeek API is compatible with OpenAI API format, so we can reuse OpenAiApiClient logic.
  */
-public class DeepSeekApiClient extends OpenAiApiClient implements LlmApiClient {
+public class DeepSeekApiClient extends OpenAiApiClient {
 
     public DeepSeekApiClient(LlmProperties properties, RestTemplate restTemplate, ObjectMapper objectMapper) {
         super(properties, restTemplate, objectMapper);

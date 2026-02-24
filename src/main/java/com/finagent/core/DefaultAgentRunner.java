@@ -44,6 +44,7 @@ public class DefaultAgentRunner implements AgentRunner {
         int currentTurn = 0;
         Object runContext = request.getContext();
 
+        // 首次调用，需要执行输入守卫
         if (currentTurn == 0 && !currentAgent.getInputGuardrails().isEmpty()) {
             for (InputGuardrail g : currentAgent.getInputGuardrails()) {
                 InputGuardrail.InputGuardrailResult result = g.process(messages, runContext);

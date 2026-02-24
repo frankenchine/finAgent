@@ -5,8 +5,6 @@ import com.finagent.model.ModelInvocationRequest;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
-
 /**
  * Builds ToolSpec list from Agent's tools and handoffs (handoffs are added by HandoffToolAdapter).
  */
