@@ -35,7 +35,7 @@ public class DemoApplication {
                     .build();
 
             RunRequest request = RunRequest.builder()
-                    .input("What's the weather in Tokyo?")
+                    .input("What's the weather in Shanghai?")
                     .maxTurns(10)
                     .build();
 
@@ -55,13 +55,13 @@ public class DemoApplication {
             InMemorySession session = new InMemorySession("conversation_123");
 
             RunResult r1 = runner.run(agent, RunRequest.builder()
-                    .input("What city is the Golden Gate Bridge in?")
+                    .input("What city is the chinese pandas in?")
                     .session(session)
                     .build());
             System.out.println("Turn 1: " + r1.getFinalOutput());
 
             RunResult r2 = runner.run(agent, RunRequest.builder()
-                    .input("What state is it in?")
+                    .input("Which province is it in?")
                     .session(session)
                     .build());
             System.out.println("Turn 2: " + r2.getFinalOutput());
@@ -115,7 +115,7 @@ public class DemoApplication {
                     .build();
 
             RunResult result = runner.run(triageAgent, RunRequest.builder()
-                    .input("Hola, ¿cómo estás?")
+                    .input("Hello, how are you?")
                     .maxTurns(10)
                     .build());
             System.out.println("Handoff example output: " + result.getFinalOutput());

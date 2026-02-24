@@ -2,9 +2,6 @@ package com.finagent.memory;
 
 import com.finagent.api.Session;
 import com.finagent.model.Message;
-
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
