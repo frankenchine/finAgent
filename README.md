@@ -75,13 +75,13 @@ Starter 模块，负责 Spring Boot 自动装配与配置绑定：
 
 在你的 Spring Boot 项目的 `pom.xml` 中加入：
 
-xml
+```xml
 <dependency>
-<groupId>com.finagent</groupId>
-<artifactId>finagent-spring-boot-starter</artifactId>
-<version>0.1.0-SNAPSHOT</version>
+  <groupId>com.finagent</groupId>
+  <artifactId>finagent-spring-boot-starter</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
 </dependency>
-
+```
 
 （假设你已经在本机或私服中安装/发布了该版本）
 
@@ -89,17 +89,17 @@ xml
 
 在下游项目的 `application.yml` 中配置 `finagent.llm` 属性，例如：
 
-yaml
+```yaml
 finagent:
-llm:
-provider: deepseek # openai 或 deepseek
-base-url: https://api.deepseek.com/v1
-api-key: your-api-key-here
-model: deepseek-chat
-temperature: 0.7
-max-tokens: 2000
-timeout-seconds: 60
-
+  llm:
+    provider: deepseek               # openai 或 deepseek
+    base-url: https://api.deepseek.com/v1
+    api-key: your-api-key-here
+    model: deepseek-chat
+    temperature: 0.7
+    max-tokens: 2000
+    timeout-seconds: 60
+```
 
 当 `api-key` 配置完成后，Starter 会自动：
 
@@ -111,7 +111,8 @@ timeout-seconds: 60
 ### 3. 注入 AgentRunner 并构建 Agent
 
 示例 Controller：
-java
+
+```java
 import com.finagent.api.AgentRunner;
 import com.finagent.api.RunRequest;
 import com.finagent.api.RunResult;
@@ -121,35 +122,40 @@ import com.finagent.tools.FunctionToolRegistry;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
 @RestController
 public class ChatController {
-private final AgentRunner agentRunner;
-public ChatController(AgentRunner agentRunner) {
-this.agentRunner = agentRunner;
-}
-@GetMapping("/chat")
-public String chat(@RequestParam String q) {
-Agent agent = new AgentDefinition()
-.setName("Assistant")
-.setInstructions("You are a helpful assistant. Reply concisely.")
-.addTool(FunctionToolRegistry.stringArgTool(
-"get_weather",
-"Get the weather for a city",
-"city",
-city -> "The weather in " + city + " is sunny."
-))
-.build();
-RunResult result = agentRunner.run(
-agent,
-RunRequest.builder()
-.input(q)
-.maxTurns(10)
-.build()
-);
-return String.valueOf(result.getFinalOutput());
-}
-}
 
+    private final AgentRunner agentRunner;
+
+    public ChatController(AgentRunner agentRunner) {
+        this.agentRunner = agentRunner;
+    }
+
+    @GetMapping("/chat")
+    public String chat(@RequestParam String q) {
+        Agent agent = new AgentDefinition()
+                .setName("Assistant")
+                .setInstructions("You are a helpful assistant. Reply concisely.")
+                .addTool(FunctionToolRegistry.stringArgTool(
+                        "get_weather",
+                        "Get the weather for a city",
+                        "city",
+                        city -> "The weather in " + city + " is sunny."
+                ))
+                .build();
+
+        RunResult result = agentRunner.run(
+                agent,
+                RunRequest.builder()
+                        .input(q)
+                        .maxTurns(10)
+                        .build()
+        );
+        return String.valueOf(result.getFinalOutput());
+    }
+}
+```
 
 ---
 
@@ -157,22 +163,25 @@ return String.valueOf(result.getFinalOutput());
 
 使用 `InMemorySession` 在多次调用间共享上下文：
 
-java
+```java
 import com.finagent.api.Session;
 import com.finagent.memory.InMemorySession;
+
 // 创建会话
 Session session = new InMemorySession("user_123");
+
 // 第一次对话
 agentRunner.run(agent, RunRequest.builder()
-.input("Hello")
-.session(session)
-.build());
+        .input("Hello")
+        .session(session)
+        .build());
+
 // 第二次对话，带上历史
 agentRunner.run(agent, RunRequest.builder()
-.input("What did I say?")
-.session(session)
-.build());
-
+        .input("What did I say?")
+        .session(session)
+        .build());
+```
 
 你也可以自定义 `Session` 实现（如 Redis、数据库），并在 `RunRequest.builder().session(...)` 中传入。
 
@@ -183,19 +192,18 @@ agentRunner.run(agent, RunRequest.builder()
 ### Tool
 
 通过 `FunctionToolRegistry` 快速把 Java 函数暴露给 LLM：
-
-java
+```java
 Agent agent = new AgentDefinition()
-.setName("Assistant")
-.setInstructions("You are a helpful assistant.")
-.addTool(FunctionToolRegistry.stringArgTool(
-"get_weather",
-"Get the weather for a city",
-"city",
-city -> "The weather in " + city + " is sunny."
-))
-.build();
-
+        .setName("Assistant")
+        .setInstructions("You are a helpful assistant.")
+        .addTool(FunctionToolRegistry.stringArgTool(
+                "get_weather",
+                "Get the weather for a city",
+                "city",
+                city -> "The weather in " + city + " is sunny."
+        ))
+        .build();
+```
 
 LLM 在回复中返回 `tool_calls` 时，`DefaultAgentRunner` 会自动：
 
@@ -208,27 +216,30 @@ LLM 在回复中返回 `tool_calls` 时，`DefaultAgentRunner` 会自动：
 
 Handoff 通过「特殊 Tool」的方式让 LLM 选择切换到另一个 Agent：
 
-java
+```java
 Handoff toSpanish = new Handoff() {
-@Override
-public String getToolName() {
-return "transfer_to_spanish_agent";
-}
-@Override
-public String getToolDescription() {
-return "Hand off to the Spanish-speaking agent.";
-}
-@Override
-public Agent getTargetAgent() {
-return spanishAgent;
-}
-};
-Agent triageAgent = new AgentDefinition()
-.setName("Triage agent")
-.setInstructions("Route the request to the right language agent.")
-.addHandoff(toSpanish)
-.build();
+    @Override
+    public String getToolName() {
+        return "transfer_to_spanish_agent";
+    }
 
+    @Override
+    public String getToolDescription() {
+        return "Hand off to the Spanish-speaking agent.";
+    }
+
+    @Override
+    public Agent getTargetAgent() {
+        return spanishAgent;
+    }
+};
+
+Agent triageAgent = new AgentDefinition()
+        .setName("Triage agent")
+        .setInstructions("Route the request to the right language agent.")
+        .addHandoff(toSpanish)
+        .build();
+```
 
 当 LLM 调用 `transfer_to_spanish_agent` 时，`DefaultAgentRunner` 会使用 `HandoffResolver` 切换当前 Agent，并继续对话。
 
@@ -243,17 +254,18 @@ Agent triageAgent = new AgentDefinition()
 
 示例（输出转大写）：
 
-java
+```java
 OutputGuardrail toUpper = (output, context) ->
-OutputGuardrail.OutputGuardrailResult.pass(
-output != null ? output.toString().toUpperCase() : ""
-);
-Agent agent = new AgentDefinition()
-.setName("test")
-.setInstructions("Help.")
-.addOutputGuardrail(toUpper)
-.build();
+        OutputGuardrail.OutputGuardrailResult.pass(
+                output != null ? output.toString().toUpperCase() : ""
+        );
 
+Agent agent = new AgentDefinition()
+        .setName("test")
+        .setInstructions("Help.")
+        .addOutputGuardrail(toUpper)
+        .build();
+```
 
 ---
 
@@ -261,26 +273,28 @@ Agent agent = new AgentDefinition()
 
 如果你不想使用内置的 HTTP 客户端，可以自己实现 `ModelInvoker` 并注册为 Spring Bean：
 
-java
+```java
 import com.finagent.core.ModelInvoker;
 import com.finagent.model.ModelInvocationRequest;
 import com.finagent.model.ModelInvocationResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 @Configuration
 public class CustomModelInvokerConfig {
-@Bean
-public ModelInvoker myModelInvoker() {
-return new ModelInvoker() {
-@Override
-public ModelInvocationResponse invoke(ModelInvocationRequest request) {
-// 在这里调用你自己的 LLM 服务，并构造 ModelInvocationResponse
-return new ModelInvocationResponse("Hello from custom model", java.util.List.of());
-}
-};
-}
-}
 
+    @Bean
+    public ModelInvoker myModelInvoker() {
+        return new ModelInvoker() {
+            @Override
+            public ModelInvocationResponse invoke(ModelInvocationRequest request) {
+                // 在这里调用你自己的 LLM 服务，并构造 ModelInvocationResponse
+                return new ModelInvocationResponse("Hello from custom model", java.util.List.of());
+            }
+        };
+    }
+}
+```
 
 当容器中存在你自定义的 `ModelInvoker` Bean 时，`LlmAutoConfiguration` 中默认的 HTTP 实现会被跳过，`AgentsAutoConfiguration` 会使用你的 Bean 创建 `DefaultAgentRunner`。
 
@@ -290,9 +304,9 @@ return new ModelInvocationResponse("Hello from custom model", java.util.List.of(
 
 在本工程根目录执行：
 
-bash
+```bash
 mvn -q -DskipTests clean install
-
+```
 
 会在本地 Maven 仓库生成：
 
