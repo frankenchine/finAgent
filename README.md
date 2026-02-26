@@ -1,6 +1,6 @@
 # finAgent
 
-finAgent 是一个面向 Spring Boot 的**轻量级多智能体（multi‑agent）框架**，设计灵感来自 [openai-agents-python](https://github.com/openai/openai-agents-python)。  
+finAgent 是一个基于 Spring Boot 的**轻量级多智能体（multi‑agent）框架**，设计灵感来自 [openai-agents-python](https://github.com/openai/openai-agents-python)。  
 它通过一组接口抽象，把「智能体、工具调用、Agent 之间的 handoff、会话记忆、Guardrail」等概念封装成可插拔组件，并内置了对 **OpenAI 格式 HTTP 接口（OpenAI、DeepSeek 等）** 的访问实现，无需依赖 Spring AI。
 
 当前仓库已经收敛为两个对外可复用的模块：
