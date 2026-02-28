@@ -1,0 +1,3 @@
+com.agent4j.config.AgentsAutoConfiguration
+com.agent4j.config.LlmAutoConfiguration
+

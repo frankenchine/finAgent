@@ -11,48 +11,26 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.finagent</groupId>
-    <artifactId>finagent</artifactId>
+    <groupId>com.agent4j</groupId>
+    <artifactId>agent4j</artifactId>
     <version>0.1.0-SNAPSHOT</version>
-    <name>finAgent</name>
+    <name>agent4j</name>
     <description>Lightweight multi-agent framework for Spring Boot</description>
+    <packaging>pom</packaging>
+
+    <licenses>
+        <license>
+            <name>PolyForm Noncommercial License 1.0.0</name>
+            <url>https://polyformproject.org/licenses/noncommercial/1.0.0/</url>
+        </license>
+    </licenses>
 
     <properties>
         <java.version>17</java.version>
     </properties>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-configuration-processor</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <!-- Optional: add spring-ai-core and spring-ai-openai-spring-boot-starter for SpringAiChatModelAdapter -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
+    <modules>
+        <module>agent4j-core</module>
+        <module>agent4j-spring-boot-starter</module>
+    </modules>
 </project>

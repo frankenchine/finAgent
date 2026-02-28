@@ -1,67 +1,98 @@
-# finAgent
+# agent4j
 
-Lightweight multi-agent framework for Spring Boot, inspired by [openai-agents-python](https://github.com/openai/openai-agents-python). It provides interface-driven abstractions for agents, tools, handoffs, sessions, and guardrails. LLM calls use a built-in HTTP client for OpenAI-format APIs (e.g. OpenAI, DeepSeek); Spring AI is not required.
+agent4j 是一个基于 Spring Boot 的**轻量级多智能体（multi‑agent）框架**，设计灵感来自 [openai-agents-python](https://github.com/openai/openai-agents-python)。  
+它通过一组接口抽象，把「智能体、工具调用、Agent 之间的 handoff、会话记忆、Guardrail」等概念封装成可插拔组件，并内置了对 **OpenAI 格式 HTTP 接口（OpenAI、DeepSeek 等）** 的访问实现，无需依赖 Spring AI。
 
-## Features
+当前仓库已经收敛为两个对外可复用的模块：
 
-- **Agent**: Stateless configuration (name, instructions, tools, handoffs, guardrails).
-- **AgentRunner**: Runs the agent loop until final output or max turns.
-- **Session**: Conversation history (e.g. `InMemorySession`); pluggable via `Session` interface.
-- **Tools**: `Tool` interface with name, description, parameter schema, and `invoke(ToolContext)`.
-- **Handoffs**: Transfer control to another agent; exposed as tools to the LLM.
-- **Guardrails**: Input (before LLM) and output (after final response) validation/transformation.
-- **ModelInvoker**: LLM abstraction; built-in HTTP-based implementation for OpenAI and DeepSeek, configurable via `application.yml`; you can also provide your own `ModelInvoker` bean.
+- `agent4j-core`：核心能力与接口定义
+- `agent4j-spring-boot-starter`：Spring Boot 自动装配与配置封装（Starter）
 
-## Quick Start
+---
 
-1. **Configure the LLM**: Copy `src/main/resources/application.yml.example` to `application.yml` in the same directory, set `finagent.llm.api-key`, and do not commit `application.yml` (it is gitignored).
-2. Inject `AgentRunner` and build an agent with `AgentDefinition`:
+## 模块结构
 
-```java
-Agent agent = new AgentDefinition()
-    .setName("Assistant")
-    .setInstructions("You are a helpful assistant. Reply concisely.")
-    .addTool(FunctionToolRegistry.stringArgTool(
-            "get_weather",
-            "Get the weather for a city",
-            "city",
-            city -> "The weather in " + city + " is sunny."
-    ))
-    .build();
+### 1. agent4j-core
 
-RunResult result = runner.run(agent, RunRequest.builder()
-    .input("What's the weather in Tokyo?")
-    .maxTurns(10)
-    .build());
+核心模块，包含所有与运行时逻辑相关的代码：
 
-System.out.println("Final output: " + result.getFinalOutput());
+- `com.agent4j.api`
+  - `Agent`：无状态 Agent 配置（名称、说明、Tools、Handoffs、Guardrails、输出类型）。
+  - `AgentRunner`：执行 Agent 的主入口，负责循环 LLM 调用直到终止。
+  - `RunRequest` / `RunResult`：一次 Run 的请求和结果封装。
+  - `Tool`：工具接口（名称、描述、参数 Schema、`invoke(ToolContext)`）。
+  - `Handoff`：Agent 间的交接（由 LLM 通过“工具调用”的形式触发）。
+  - `Session`：会话记忆接口（如 `InMemorySession`）。
+  - `InputGuardrail` / `OutputGuardrail`：输入/输出 Guardrail。
+- `com.agent4j.core`
+  - `DefaultAgentRunner`：默认的 AgentRunner 实现，负责：
+    - 调用 `ModelInvoker`（LLM）
+    - 判断是最终输出、工具调用还是 handoff
+    - 处理 Guardrail 和 Session 记忆
+  - `AgentDefinition`：用于构建 `Agent` 的可变配置类。
+  - `ModelInvoker`：一次 LLM 调用的抽象接口。
+- `com.agent4j.model`
+  - `Message`：统一的对话消息表示（SYSTEM/USER/ASSISTANT/TOOL）。
+  - `ModelInvocationRequest` / `ModelInvocationResponse`：LLM 调用请求与返回结构（含 tool_calls）。
+- `com.agent4j.tools`
+  - `FunctionToolRegistry`：快速把 Java 函数包装成 `Tool`。
+  - `ToolExecutor`、`ToolInvocation`、`ToolSchema`：工具执行与 Schema 适配。
+- `com.agent4j.handoffs`
+  - `HandoffResolver`、`HandoffToolAdapter`：把 Handoff 暴露给 LLM 并在收到调用时完成 Agent 切换。
+- `com.agent4j.memory`
+  - `InMemorySession`：基于内存的 Session 实现。
+- `com.agent4j.llm`
+  - `LlmApiClient`：LLM HTTP 客户端接口。
+  - `HttpModelInvoker`：基于 `LlmApiClient` 的 `ModelInvoker` 实现。
+  - `LlmProvider`：支持的 Provider 枚举（`OPENAI`、`DEEPSEEK`）。
+  - `OpenAiApiClient` / `DeepSeekApiClient`：面向 OpenAI 格式聊天接口的 HTTP 客户端。
+  - `dto.OpenAiRequest` / `dto.OpenAiResponse`：与 OpenAI Chat Completions 协议兼容的 DTO。
+- `com.agent4j.config`
+  - `LlmProperties`：`agent4j.llm.*` 配置属性（Provider、Base URL、API Key、模型、超时、温度等）。
+
+### 2. agent4j-spring-boot-starter
+
+Starter 模块，负责 Spring Boot 自动装配与配置绑定：
+
+- `com.agent4j.config.AgentsAutoConfiguration`
+  - 自动注入 `AgentRunner`：
+    - 若容器中存在 `ModelInvoker` Bean 且没有用户自定义 `AgentRunner`，则创建 `DefaultAgentRunner`。
+- `com.agent4j.config.LlmAutoConfiguration`
+  - 自动配置 LLM 相关 Bean：
+    - `RestTemplate`（超时等）
+    - `LlmApiClient`（根据 `agent4j.llm.provider` 选择 OpenAI/DeepSeek）
+    - `HttpModelInvoker`（默认 `ModelInvoker` 实现）
+- `com.agent4j.config.AgentsProperties`
+  - `agent4j.*` 级别的通用配置（如默认最大轮数、Session 存储方式等）。
+- `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
+  - 注册上述自动配置类，使其在引入 starter 后自动生效。
+
+---
+
+## 在下游 Spring Boot 项目中使用
+
+### 1. 添加依赖
+
+在你的 Spring Boot 项目的 `pom.xml` 中加入：
+
+```xml
+<dependency>
+  <groupId>com.agent4j</groupId>
+  <artifactId>agent4j-spring-boot-starter</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+</dependency>
 ```
 
-3. With session (conversation memory):
+（假设你已经在本机或私服中安装/发布了该版本）
 
-```java
-Session session = new InMemorySession("user_123");
-runner.run(agent, RunRequest.builder().input("Hello").session(session).build());
-runner.run(agent, RunRequest.builder().input("What did I say?").session(session).build());
-```
+### 2. 配置 LLM
 
-## LLM and ModelInvoker
-
-This project does not depend on Spring AI. The default LLM integration is a built-in HTTP client that talks to OpenAI-format APIs.
-
-- **Configuration**: Under `finagent.llm` in `application.yml` you set `provider` (e.g. `openai` or `deepseek`), `base-url`, `api-key`, `model`, `temperature`, `max-tokens`, and `timeout-seconds`. When `api-key` is set, Spring Boot auto-configuration registers an `HttpModelInvoker` and the appropriate `LlmApiClient` (OpenAI or DeepSeek).
-- **Override**: You can provide your own `ModelInvoker` bean (e.g. a mock or another API) to replace the default.
-
-## Configuration
-
-Copy `src/main/resources/application.yml.example` to `application.yml` in the same directory, set your LLM `api-key`, and run. Do not commit `application.yml` (it is gitignored); use the example file as the template.
-
-Example `finagent.llm` settings (see `application.yml.example` for full content):
+在下游项目的 `application.yml` 中配置 `agent4j.llm` 属性，例如：
 
 ```yaml
-finagent:
+agent4j:
   llm:
-    provider: deepseek
+    provider: deepseek               # openai 或 deepseek
     base-url: https://api.deepseek.com/v1
     api-key: your-api-key-here
     model: deepseek-chat
@@ -70,14 +101,228 @@ finagent:
     timeout-seconds: 60
 ```
 
-## Running the Demo
+当 `api-key` 配置完成后，Starter 会自动：
 
-```bash
-mvn spring-boot:run -Dspring-boot.run.mainClass=com.finagent.demo.DemoApplication
+- 创建具备超时配置的 `RestTemplate`
+- 按 `provider` 选择 `OpenAiApiClient` 或 `DeepSeekApiClient`
+- 注册 `HttpModelInvoker` 作为默认 `ModelInvoker` Bean
+- 再由 `AgentsAutoConfiguration` 创建一个默认的 `AgentRunner` Bean
+
+### 3. 注入 AgentRunner 并构建 Agent
+
+示例 Controller：
+
+```java
+import com.agent4j.api.AgentRunner;
+import com.agent4j.api.RunRequest;
+import com.agent4j.api.RunResult;
+import com.agent4j.api.Agent;
+import com.agent4j.core.AgentDefinition;
+import com.agent4j.tools.FunctionToolRegistry;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class ChatController {
+
+    private final AgentRunner agentRunner;
+
+    public ChatController(AgentRunner agentRunner) {
+        this.agentRunner = agentRunner;
+    }
+
+    @GetMapping("/chat")
+    public String chat(@RequestParam String q) {
+        Agent agent = new AgentDefinition()
+                .setName("Assistant")
+                .setInstructions("You are a helpful assistant. Reply concisely.")
+                .addTool(FunctionToolRegistry.stringArgTool(
+                        "get_weather",
+                        "Get the weather for a city",
+                        "city",
+                        city -> "The weather in " + city + " is sunny."
+                ))
+                .build();
+
+        RunResult result = agentRunner.run(
+                agent,
+                RunRequest.builder()
+                        .input(q)
+                        .maxTurns(10)
+                        .build()
+        );
+        return String.valueOf(result.getFinalOutput());
+    }
+}
 ```
 
-Ensure `application.yml` contains a valid `finagent.llm.api-key`. The demo runs three examples: an agent with a tool call, a session (multi-turn) example, and a handoff between two agents.
+---
 
-## License
+## 会话记忆（Session）示例
 
-MIT
+使用 `InMemorySession` 在多次调用间共享上下文：
+
+```java
+import com.agent4j.api.Session;
+import com.agent4j.memory.InMemorySession;
+
+// 创建会话
+Session session = new InMemorySession("user_123");
+
+// 第一次对话
+agentRunner.run(agent, RunRequest.builder()
+        .input("Hello")
+        .session(session)
+        .build());
+
+// 第二次对话，带上历史
+agentRunner.run(agent, RunRequest.builder()
+        .input("What did I say?")
+        .session(session)
+        .build());
+```
+
+你也可以自定义 `Session` 实现（如 Redis、数据库），并在 `RunRequest.builder().session(...)` 中传入。
+
+---
+
+## 工具（Tool）与 Handoff
+
+### Tool
+
+通过 `FunctionToolRegistry` 快速把 Java 函数暴露给 LLM：
+```java
+Agent agent = new AgentDefinition()
+        .setName("Assistant")
+        .setInstructions("You are a helpful assistant.")
+        .addTool(FunctionToolRegistry.stringArgTool(
+                "get_weather",
+                "Get the weather for a city",
+                "city",
+                city -> "The weather in " + city + " is sunny."
+        ))
+        .build();
+```
+
+LLM 在回复中返回 `tool_calls` 时，`DefaultAgentRunner` 会自动：
+
+1. 解析 `tool_calls` 列表
+2. 构造 `ToolInvocation`
+3. 通过 `ToolExecutor` 调用具体的 `Tool`
+4. 把 Tool 执行结果作为 `TOOL` 消息追加到对话，再进行下一轮 LLM 调用
+
+### Handoff
+
+Handoff 通过「特殊 Tool」的方式让 LLM 选择切换到另一个 Agent：
+
+```java
+Handoff toSpanish = new Handoff() {
+    @Override
+    public String getToolName() {
+        return "transfer_to_spanish_agent";
+    }
+
+    @Override
+    public String getToolDescription() {
+        return "Hand off to the Spanish-speaking agent.";
+    }
+
+    @Override
+    public Agent getTargetAgent() {
+        return spanishAgent;
+    }
+};
+
+Agent triageAgent = new AgentDefinition()
+        .setName("Triage agent")
+        .setInstructions("Route the request to the right language agent.")
+        .addHandoff(toSpanish)
+        .build();
+```
+
+当 LLM 调用 `transfer_to_spanish_agent` 时，`DefaultAgentRunner` 会使用 `HandoffResolver` 切换当前 Agent，并继续对话。
+
+---
+
+## Guardrail：输入与输出的约束
+
+你可以为 Agent 配置：
+
+- `InputGuardrail`：在第一次 LLM 调用前检查/修改输入，或直接拒绝。
+- `OutputGuardrail`：在最终输出返回给用户前做校验/转换。
+
+示例（输出转大写）：
+
+```java
+OutputGuardrail toUpper = (output, context) ->
+        OutputGuardrail.OutputGuardrailResult.pass(
+                output != null ? output.toString().toUpperCase() : ""
+        );
+
+Agent agent = new AgentDefinition()
+        .setName("test")
+        .setInstructions("Help.")
+        .addOutputGuardrail(toUpper)
+        .build();
+```
+
+---
+
+## 自定义 ModelInvoker
+
+如果你不想使用内置的 HTTP 客户端，可以自己实现 `ModelInvoker` 并注册为 Spring Bean：
+
+```java
+import com.agent4j.core.ModelInvoker;
+import com.agent4j.model.ModelInvocationRequest;
+import com.agent4j.model.ModelInvocationResponse;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class CustomModelInvokerConfig {
+
+    @Bean
+    public ModelInvoker myModelInvoker() {
+        return new ModelInvoker() {
+            @Override
+            public ModelInvocationResponse invoke(ModelInvocationRequest request) {
+                // 在这里调用你自己的 LLM 服务，并构造 ModelInvocationResponse
+                return new ModelInvocationResponse("Hello from custom model", java.util.List.of());
+            }
+        };
+    }
+}
+```
+
+当容器中存在你自定义的 `ModelInvoker` Bean 时，`LlmAutoConfiguration` 中默认的 HTTP 实现会被跳过，`AgentsAutoConfiguration` 会使用你的 Bean 创建 `DefaultAgentRunner`。
+
+---
+
+## 构建与安装
+
+在本工程根目录执行：
+
+```bash
+mvn -q -DskipTests clean install
+```
+
+会在本地 Maven 仓库生成：
+
+- `com.agent4j:agent4j-core`
+- `com.agent4j:agent4j-spring-boot-starter`
+
+下游项目只需要依赖 `agent4j-spring-boot-starter` 即可。
+
+---
+
+## 许可证
+
+本项目采用 **PolyForm Noncommercial License 1.0.0**。
+
+- **允许**：个人学习、研究、业余项目；教育机构、慈善机构、公共研究机构使用
+- **禁止**：未经授权的商业用途（公司产品、SaaS、内部营利性工具等）
+
+商业使用请联系 [agent4j@sina.com] 获取商业许可。详细条款见仓库中的 `LICENSE` 文件。
+
