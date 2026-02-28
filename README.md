@@ -319,6 +319,10 @@ mvn -q -DskipTests clean install
 
 ## 许可证
 
-本项目使用 **MIT License**。你可以自由地在商业和非商业项目中使用、修改和分发（需保留许可证声明）。  
-详细条款见仓库中的 `LICENSE` 文件（如有）。
+本项目采用 **PolyForm Noncommercial License 1.0.0**。
+
+- **允许**：个人学习、研究、业余项目；教育机构、慈善机构、公共研究机构使用
+- **禁止**：未经授权的商业用途（公司产品、SaaS、内部营利性工具等）
+
+商业使用请联系 [agent4j@sina.com] 获取商业许可。详细条款见仓库中的 `LICENSE` 文件。
 

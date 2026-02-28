@@ -18,6 +18,13 @@
     <description>Lightweight multi-agent framework for Spring Boot</description>
     <packaging>pom</packaging>
 
+    <licenses>
+        <license>
+            <name>PolyForm Noncommercial License 1.0.0</name>
+            <url>https://polyformproject.org/licenses/noncommercial/1.0.0/</url>
+        </license>
+    </licenses>
+
     <properties>
         <java.version>17</java.version>
     </properties>

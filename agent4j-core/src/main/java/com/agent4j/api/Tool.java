@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 agent4j
+ * Licensed under the PolyForm Noncommercial License 1.0.0
+ * https://polyformproject.org/licenses/noncommercial/1.0.0/
+ */
 package com.agent4j.api;
 
 import java.util.Map;
