@@ -11,10 +11,10 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.finagent</groupId>
-    <artifactId>finagent</artifactId>
+    <groupId>com.agent4j</groupId>
+    <artifactId>agent4j</artifactId>
     <version>0.1.0-SNAPSHOT</version>
-    <name>finAgent</name>
+    <name>agent4j</name>
     <description>Lightweight multi-agent framework for Spring Boot</description>
     <packaging>pom</packaging>
 
@@ -23,7 +23,7 @@
     </properties>
 
     <modules>
-        <module>finagent-core</module>
-        <module>finagent-spring-boot-starter</module>
+        <module>agent4j-core</module>
+        <module>agent4j-spring-boot-starter</module>
     </modules>
 </project>
