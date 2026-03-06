@@ -23,8 +23,13 @@ agent4j 是一个基于 Spring Boot 的**轻量级多智能体（multi‑agent�
   - `Tool`：工具接口（名称、描述、参数 Schema、`invoke(ToolContext)`）。
   - `Handoff`：Agent 间的交接（由 LLM 通过“工具调用”的形式触发）。
   - `Session`：会话记忆接口（如 `InMemorySession`）。
+  - `ReflexionMemory`：反思记忆接口，用于 Reflexion 多轮试错。
+  - `TrialEvaluator`：单次 Run 的成功/失败评估器。
+  - `ReflexionRunConfig` / `ReflexionRunRequest`：Reflexion 运行配置与请求。
   - `InputGuardrail` / `OutputGuardrail`：输入/输出 Guardrail。
 - `com.agent4j.core`
+  - `ReflexionRunner`：Reflexion 多轮试错执行器（执行 → 评估 → 反思 → 重试）。
+  - `LlmTrialEvaluator`：基于 LLM 的 TrialEvaluator 实现。
   - `DefaultAgentRunner`：默认的 AgentRunner 实现，负责：
     - 调用 `ModelInvoker`（LLM）
     - 判断是最终输出、工具调用还是 handoff
@@ -184,6 +189,44 @@ agentRunner.run(agent, RunRequest.builder()
 ```
 
 你也可以自定义 `Session` 实现（如 Redis、数据库），并在 `RunRequest.builder().session(...)` 中传入。
+
+---
+
+## Reflexion：多轮试错与反思记忆
+
+Reflexion 模式支持多轮试错：每轮失败后由 LLM 生成反思，存入 memory，下一轮将反思注入 context 以改进。适用于需要从失败中学习的任务（如解题、优化）。
+
+```java
+import com.agent4j.api.*;
+import com.agent4j.core.ReflexionRunner;
+import com.agent4j.core.LlmTrialEvaluator;
+import com.agent4j.memory.InMemoryReflexionMemory;
+
+// 创建 Reflexion 组件
+ReflexionMemory memory = new InMemoryReflexionMemory("task_001");
+TrialEvaluator evaluator = new LlmTrialEvaluator(modelInvoker,
+    "Evaluate whether the agent's solution is correct. Reply with SUCCESS or FAILURE, then brief feedback.");
+
+ReflexionRunConfig config = ReflexionRunConfig.builder()
+    .maxTrials(3)
+    .reflectionLimit(5)
+    .build();
+
+ReflexionRunner reflexionRunner = new ReflexionRunner(agentRunner, modelInvoker);
+
+// 执行 Reflexion 多轮试错
+RunResult result = reflexionRunner.run(agent,
+    ReflexionRunRequest.builder()
+        .input("Solve: ...")
+        .reflexionMemory(memory)
+        .trialEvaluator(evaluator)
+        .config(config)
+        .build());
+```
+
+- `ReflexionMemory`：存储反思文本，可自定义实现（如 Redis、SQLite）。
+- `TrialEvaluator`：评估单次 Run 的成功/失败；`LlmTrialEvaluator` 使用 LLM 判断，也可实现自定义逻辑。
+- `ReflexionRunConfig`：可配置 `maxTrials`、`reflectionLimit`、`reflectPromptTemplate`。
 
 ---
 
