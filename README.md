@@ -113,6 +113,134 @@ agent4j:
 - 注册 `HttpModelInvoker` 作为默认 `ModelInvoker` Bean
 - 再由 `AgentsAutoConfiguration` 创建一个默认的 `AgentRunner` Bean
 
+---
+
+## LLM 动态路由（LlmRouter）
+
+在某些场景下，你可能希望**同一套 Agent 逻辑**能根据 `agentName` / `taskType` 等上下文选择不同模型（例如：短回答走便宜模型，代码生成走更强模型），并在失败时按 fallback 顺序重试。
+
+Starter 已默认装配以下 Bean（均可被用户自定义覆盖）：
+
+- `LlmRoutingRuleRepository`：路由规则仓库（默认从配置读取，内存保存）
+- `SimpleLlmRoutingStrategy`：按规则匹配（agent regex + 可选 taskType），否则走 default
+- `ModelInvokerRegistry`：`Map<ModelIdentifier, ModelInvoker>` 的内存注册表
+- `LlmRouter`：门面，负责 route + invoke + fallback
+
+更完整说明见 `docs/llm-routing.md`。
+
+### 1) 配置示例
+
+```yaml
+agent4j:
+  llm:
+    provider: openai
+    api-key: your-api-key-here
+    model: gpt-4o-mini
+
+    # 当没有任何 routing-rules 命中时使用（可选）
+    default-model: openai:gpt-4o-mini
+
+    # 路由规则（可选）
+    routing-rules:
+      - agent: "supportAgent"          # Java 正则；为空表示匹配任意 agent
+        task-type: "short_answer"      # 可选：精确匹配（忽略大小写）
+        primary-model: "openai:gpt-4o-mini"
+        fallback-models:
+          - "openai:gpt-4o"
+      - agent: "codeAgent"
+        task-type: "code_generation"
+        primary-model: "openai:gpt-4o"
+```
+
+说明：
+
+- `primary-model` / `fallback-models` 的格式为 `{provider}:{modelName}`，例如 `openai:gpt-4o-mini`
+- 默认实现会把当前单一 `ModelInvoker` 注册到 `ModelInvokerRegistry` 中（key 为 `provider:model` 以及 `default-model`）。如果你需要同时支持多 provider / 多 baseUrl，可以自行注册更多 `ModelInvoker`。
+
+### 2) 使用示例（保留兼容路径）
+
+如果你只使用 `AgentRunner`（兼容路径），无需改动，仍会走默认的 `ModelInvoker`：
+
+```java
+// 兼容路径：不使用路由
+RunResult result = agentRunner.run(agent, RunRequest.builder().input(q).maxTurns(10).build());
+```
+
+如果你希望显式路由（例如在你的业务代码中“手动调用一次 LLM”，或做多模型编排），可以直接注入 `LlmRouter`：
+
+```java
+import com.agent4j.llm.LlmRouter;
+import com.agent4j.llm.RoutingContext;
+import com.agent4j.model.Message;
+import com.agent4j.model.ModelInvocationRequest;
+
+// ...
+RoutingContext ctx = RoutingContext.builder()
+        .agentName("supportAgent")
+        .taskType("short_answer")
+        .build();
+
+ModelInvocationRequest req = new ModelInvocationRequest(
+        "You are a helpful assistant. Reply concisely.",
+        java.util.List.of(Message.user("Explain what agent4j is.")),
+        java.util.List.of()
+);
+
+String text = llmRouter.routeAndInvoke(ctx, req).getAssistantText();
+```
+
+如果你的“示例 Agent / Service”历史上直接依赖 `LlmApiClient`，推荐改成 **router 优先、client 兜底** 的兼容写法：
+
+```java
+import com.agent4j.llm.LlmApiClient;
+import com.agent4j.llm.LlmRouter;
+import com.agent4j.llm.RoutingContext;
+import com.agent4j.model.Message;
+import com.agent4j.model.ModelInvocationRequest;
+import com.agent4j.model.ModelInvocationResponse;
+
+public class SupportAgentService {
+    private final LlmRouter llmRouter;       // 可选（有动态路由能力时注入）
+    private final LlmApiClient llmApiClient; // 兼容路径（没有路由时仍可用）
+
+    public SupportAgentService(LlmRouter llmRouter, LlmApiClient llmApiClient) {
+        this.llmRouter = llmRouter;
+        this.llmApiClient = llmApiClient;
+    }
+
+    public String answer(String question) {
+        RoutingContext ctx = RoutingContext.builder()
+                .agentName("supportAgent")
+                .taskType("short_answer")
+                .build();
+
+        ModelInvocationRequest req = new ModelInvocationRequest(
+                "You are a helpful assistant. Reply concisely.",
+                java.util.List.of(Message.user(question)),
+                java.util.List.of()
+        );
+
+        ModelInvocationResponse resp = (llmRouter != null)
+                ? llmRouter.routeAndInvoke(ctx, req)
+                : llmApiClient.invoke(req);
+
+        return resp.getAssistantText();
+    }
+}
+```
+
+### 3) 扩展点
+
+- **自定义规则来源**：实现 `LlmRoutingRuleRepository`（例如从 DB / 配置中心拉取规则）并注册为 Bean。
+- **自定义路由策略**：实现 `LlmRoutingStrategy`（例如按 userId/成本预算/标签等）并注册为 Bean。
+- **自定义 invoker 注册**：拿到 `ModelInvokerRegistry` 后注册更多 `ModelIdentifier -> ModelInvoker`，以支持多 provider/多 endpoint 的组合。
+
+当前默认路由策略是 `SimpleLlmRoutingStrategy`（按 `agent` 正则 + 可选 `taskType` 匹配，未命中则使用 `default-model`）。
+
+未来扩展点（接口已预留但默认实现暂不启用）：
+
+- **多模型链式调用**：可在后续迭代中扩展 `LlmRoutingDecision` 支持 pre/post processors（先便宜模型预处理，再贵模型完成任务）。
+
 ### 3. 注入 AgentRunner 并构建 Agent
 
 示例 Controller：

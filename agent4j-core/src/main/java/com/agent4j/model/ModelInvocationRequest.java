@@ -18,14 +18,29 @@ import java.util.Map;
  */
 public final class ModelInvocationRequest {
 
+    /**
+     * Optional model override for this invocation (e.g. "gpt-4o-mini").
+     * If null, invokers should fall back to global configuration.
+     */
+    private final String model;
+
     private final String systemPrompt;
     private final List<Message> messages;
     private final List<ToolSpec> toolSpecs;
 
     public ModelInvocationRequest(String systemPrompt, List<Message> messages, List<ToolSpec> toolSpecs) {
+        this(null, systemPrompt, messages, toolSpecs);
+    }
+
+    public ModelInvocationRequest(String model, String systemPrompt, List<Message> messages, List<ToolSpec> toolSpecs) {
+        this.model = model;
         this.systemPrompt = systemPrompt;
         this.messages = messages != null ? List.copyOf(messages) : List.of();
         this.toolSpecs = toolSpecs != null ? List.copyOf(toolSpecs) : List.of();
+    }
+
+    public String getModel() {
+        return model;
     }
 
     public String getSystemPrompt() {

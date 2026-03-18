@@ -74,7 +74,8 @@ public class OpenAiApiClient implements LlmApiClient {
 
     private OpenAiRequest convertToOpenAiRequest(ModelInvocationRequest request) {
         OpenAiRequest openAiRequest = new OpenAiRequest();
-        openAiRequest.setModel(properties.getModel());
+        String model = request.getModel();
+        openAiRequest.setModel(model != null && !model.isBlank() ? model : properties.getModel());
         openAiRequest.setTemperature(properties.getTemperature());
         openAiRequest.setMaxTokens(properties.getMaxTokens());
 

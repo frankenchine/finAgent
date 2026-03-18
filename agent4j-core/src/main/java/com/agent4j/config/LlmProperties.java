@@ -5,6 +5,9 @@
  */
 package com.agent4j.config;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -32,6 +35,18 @@ public class LlmProperties {
      * Model name (e.g., gpt-3.5-turbo, gpt-4, deepseek-chat)
      */
     private String model = "gpt-3.5-turbo";
+
+    /**
+     * Default model identifier used by routing when no rule matches.
+     * Format: "{provider}:{modelName}" (e.g. "openai:gpt-4o-mini").
+     * If not set, falls back to "{provider}:{model}".
+     */
+    private String defaultModel;
+
+    /**
+     * Optional routing rules loaded from configuration.
+     */
+    private List<RoutingRuleProperties> routingRules = new ArrayList<>();
 
     /**
      * Temperature parameter (0.0 to 2.0)
@@ -80,6 +95,22 @@ public class LlmProperties {
         this.model = model;
     }
 
+    public String getDefaultModel() {
+        return defaultModel;
+    }
+
+    public void setDefaultModel(String defaultModel) {
+        this.defaultModel = defaultModel;
+    }
+
+    public List<RoutingRuleProperties> getRoutingRules() {
+        return routingRules;
+    }
+
+    public void setRoutingRules(List<RoutingRuleProperties> routingRules) {
+        this.routingRules = routingRules != null ? routingRules : new ArrayList<>();
+    }
+
     public Double getTemperature() {
         return temperature;
     }
@@ -102,6 +133,60 @@ public class LlmProperties {
 
     public void setTimeoutSeconds(Integer timeoutSeconds) {
         this.timeoutSeconds = timeoutSeconds;
+    }
+
+    public static class RoutingRuleProperties {
+        /**
+         * Agent name pattern (Java regex). If empty, matches any agent.
+         */
+        private String agent;
+
+        /**
+         * Optional task type to match (exact match, case-insensitive).
+         */
+        private String taskType;
+
+        /**
+         * Primary model identifier: "{provider}:{modelName}".
+         */
+        private String primaryModel;
+
+        /**
+         * Fallback model identifiers: list of "{provider}:{modelName}".
+         */
+        private List<String> fallbackModels = new ArrayList<>();
+
+        public String getAgent() {
+            return agent;
+        }
+
+        public void setAgent(String agent) {
+            this.agent = agent;
+        }
+
+        public String getTaskType() {
+            return taskType;
+        }
+
+        public void setTaskType(String taskType) {
+            this.taskType = taskType;
+        }
+
+        public String getPrimaryModel() {
+            return primaryModel;
+        }
+
+        public void setPrimaryModel(String primaryModel) {
+            this.primaryModel = primaryModel;
+        }
+
+        public List<String> getFallbackModels() {
+            return fallbackModels;
+        }
+
+        public void setFallbackModels(List<String> fallbackModels) {
+            this.fallbackModels = fallbackModels != null ? fallbackModels : new ArrayList<>();
+        }
     }
 }
 

@@ -65,5 +65,41 @@ public class LlmAutoConfiguration {
     public ModelInvoker httpModelInvoker(LlmApiClient llmApiClient) {
         return new HttpModelInvoker(llmApiClient);
     }
+
+    @Bean
+    @ConditionalOnMissingBean(LlmRoutingRuleRepository.class)
+    public LlmRoutingRuleRepository llmRoutingRuleRepository(LlmProperties properties) {
+        return RoutingRuleRepositories.fromProperties(properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(LlmRoutingStrategy.class)
+    public LlmRoutingStrategy llmRoutingStrategy(LlmProperties properties, LlmRoutingRuleRepository repository) {
+        String defaultId = (properties.getDefaultModel() != null && !properties.getDefaultModel().isBlank())
+                ? properties.getDefaultModel()
+                : properties.getProvider() + ":" + properties.getModel();
+        return new SimpleLlmRoutingStrategy(repository, ModelIdentifier.fromString(defaultId));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ModelInvokerRegistry.class)
+    public ModelInvokerRegistry modelInvokerRegistry(LlmProperties properties, ModelInvoker modelInvoker) {
+        ModelInvokerRegistry registry = new ModelInvokerRegistry();
+        // Default registration uses the existing (single-provider) ModelInvoker.
+        // Additional providers/models can be registered by users as needed.
+        registry.register(new ModelIdentifier(properties.getProvider(), properties.getModel()), modelInvoker);
+        // Also register the configured defaultModel identifier if present.
+        if (properties.getDefaultModel() != null && !properties.getDefaultModel().isBlank()) {
+            ModelIdentifier def = ModelIdentifier.fromString(properties.getDefaultModel());
+            registry.register(def, modelInvoker);
+        }
+        return registry;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(LlmRouter.class)
+    public LlmRouter llmRouter(LlmRoutingStrategy routingStrategy, ModelInvokerRegistry registry) {
+        return new LlmRouter(registry, routingStrategy);
+    }
 }
 
