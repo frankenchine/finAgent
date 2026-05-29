@@ -8,6 +8,12 @@ agent4j 是一个基于 Spring Boot 的**轻量级多智能体（multi‑agent�
 - `agent4j-core`：核心能力与接口定义
 - `agent4j-spring-boot-starter`：Spring Boot 自动装配与配置封装（Starter）
 
+## 兼容性要求
+
+- 最低 JDK 版本：`JDK 8`
+- 推荐 Spring Boot 版本：`2.7.x`（Starter 已按该版本线适配）
+- 下游项目只要运行在 JDK8 且使用 Boot 2.7.x，即可直接引入并使用
+
 ---
 
 ## 模块结构
@@ -64,7 +70,7 @@ Starter 模块，负责 Spring Boot 自动装配与配置绑定：
     - `HttpModelInvoker`（默认 `ModelInvoker` 实现）
 - `com.agent4j.config.AgentsProperties`
   - `agent4j.*` 级别的通用配置（如默认最大轮数、Session 存储方式等）。
-- `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
+- `META-INF/spring.factories`
   - 注册上述自动配置类，使其在引入 starter 后自动生效。
 
 ---
@@ -192,6 +198,7 @@ agentRunner.run(agent, RunRequest.builder()
 ### Tool
 
 通过 `FunctionToolRegistry` 快速把 Java 函数暴露给 LLM：
+
 ```java
 Agent agent = new AgentDefinition()
         .setName("Assistant")
@@ -289,7 +296,7 @@ public class CustomModelInvokerConfig {
             @Override
             public ModelInvocationResponse invoke(ModelInvocationRequest request) {
                 // 在这里调用你自己的 LLM 服务，并构造 ModelInvocationResponse
-                return new ModelInvocationResponse("Hello from custom model", java.util.List.of());
+                return new ModelInvocationResponse("Hello from custom model", java.util.Collections.<ModelInvocationResponse.ToolCall>emptyList());
             }
         };
     }
@@ -323,6 +330,4 @@ mvn -q -DskipTests clean install
 
 - **允许**：个人学习、研究、业余项目；教育机构、慈善机构、公共研究机构使用
 - **禁止**：未经授权的商业用途（公司产品、SaaS、内部营利性工具等）
-
 商业使用请联系 [agent4j@sina.com] 获取商业许可。详细条款见仓库中的 `LICENSE` 文件。
-

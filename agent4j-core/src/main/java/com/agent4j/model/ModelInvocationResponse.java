@@ -5,6 +5,8 @@
  */
 package com.agent4j.model;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -20,7 +22,9 @@ public final class ModelInvocationResponse {
 
     public ModelInvocationResponse(String assistantText, List<ToolCall> toolCalls) {
         this.assistantText = assistantText;
-        this.toolCalls = toolCalls != null ? List.copyOf(toolCalls) : List.of();
+        this.toolCalls = toolCalls != null
+                ? Collections.unmodifiableList(new ArrayList<>(toolCalls))
+                : Collections.<ToolCall>emptyList();
     }
 
     public String getAssistantText() {

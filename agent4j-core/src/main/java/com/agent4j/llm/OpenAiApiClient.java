@@ -195,7 +195,7 @@ public class OpenAiApiClient implements LlmApiClient {
 
     private ModelInvocationResponse convertFromOpenAiResponse(OpenAiResponse response) {
         if (response == null || response.getChoices() == null || response.getChoices().isEmpty()) {
-            return new ModelInvocationResponse("", List.of());
+            return new ModelInvocationResponse("", java.util.Collections.<ModelInvocationResponse.ToolCall>emptyList());
         }
 
         OpenAiResponse.Choice choice = response.getChoices().get(0);

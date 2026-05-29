@@ -7,7 +7,9 @@ package com.agent4j.tools;
 
 import com.agent4j.api.Tool;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -29,11 +31,17 @@ public final class FunctionToolRegistry {
      * Create a tool that accepts a single string argument (e.g. "city" for get_weather).
      */
     public static Tool stringArgTool(String name, String description, String paramName, StringParamFunction fn) {
-        Map<String, Object> schema = Map.of(
-                "type", "object",
-                "properties", Map.of(paramName, Map.of("type", "string", "description", paramName)),
-                "required", java.util.List.of(paramName)
-        );
+        Map<String, Object> argSchema = new HashMap<>();
+        argSchema.put("type", "string");
+        argSchema.put("description", paramName);
+        Map<String, Object> properties = new HashMap<>();
+        properties.put(paramName, argSchema);
+        java.util.List<String> required = new ArrayList<>();
+        required.add(paramName);
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", properties);
+        schema.put("required", required);
         return new FunctionTool(name, description, schema, args -> {
             Object v = args.get(paramName);
             return fn.run(v != null ? v.toString() : "");
@@ -86,7 +94,7 @@ public final class FunctionToolRegistry {
         }
 
         private static Map<String, Object> parseArgs(String json) {
-            if (json == null || json.isBlank()) {
+            if (json == null || json.trim().isEmpty()) {
                 return Collections.emptyMap();
             }
             try {

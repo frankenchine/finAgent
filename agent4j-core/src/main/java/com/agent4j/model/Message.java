@@ -6,6 +6,7 @@
 package com.agent4j.model;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -109,7 +110,9 @@ public interface Message {
             this.messageType = messageType;
             this.text = text != null ? text : "";
             this.toolCallId = toolCallId;
-            this.toolCalls = toolCalls != null && !toolCalls.isEmpty() ? List.copyOf(toolCalls) : null;
+            this.toolCalls = toolCalls != null && !toolCalls.isEmpty()
+                    ? Collections.unmodifiableList(new ArrayList<>(toolCalls))
+                    : null;
         }
 
         @Override

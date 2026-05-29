@@ -8,6 +8,8 @@ package com.agent4j.handoffs;
 import com.agent4j.api.Agent;
 import com.agent4j.api.Handoff;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,7 +21,9 @@ public class HandoffResolver {
     private final List<Handoff> handoffs;
 
     public HandoffResolver(List<Handoff> handoffs) {
-        this.handoffs = handoffs != null ? List.copyOf(handoffs) : List.of();
+        this.handoffs = handoffs != null
+                ? Collections.unmodifiableList(new ArrayList<>(handoffs))
+                : Collections.<Handoff>emptyList();
     }
 
     public Optional<Agent> resolveByToolName(String toolName) {

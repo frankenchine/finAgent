@@ -8,7 +8,9 @@ package com.agent4j.handoffs;
 import com.agent4j.api.Handoff;
 import com.agent4j.model.ModelInvocationRequest;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -21,13 +23,13 @@ public final class HandoffToolAdapter {
 
     public static List<ModelInvocationRequest.ToolSpec> toToolSpecs(List<Handoff> handoffs) {
         if (handoffs == null || handoffs.isEmpty()) {
-            return List.of();
+            return Collections.emptyList();
         }
         return handoffs.stream()
                 .map(h -> new ModelInvocationRequest.ToolSpec(
                         h.getToolName(),
                         h.getToolDescription(),
-                        java.util.Map.of() // no parameters
+                        new HashMap<String, Object>() // no parameters
                 ))
                 .collect(Collectors.toList());
     }

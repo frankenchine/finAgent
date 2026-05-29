@@ -7,6 +7,8 @@ package com.agent4j.api;
 
 import com.agent4j.model.Message;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -26,10 +28,16 @@ public final class RunResult {
     private RunResult(Builder b) {
         this.finalOutput = b.finalOutput;
         this.lastAgent = b.lastAgent;
-        this.rawResponses = b.rawResponses != null ? List.copyOf(b.rawResponses) : List.of();
+        this.rawResponses = b.rawResponses != null
+                ? Collections.unmodifiableList(new ArrayList<>(b.rawResponses))
+                : Collections.<Message>emptyList();
         this.input = b.input;
-        this.inputGuardrailResults = b.inputGuardrailResults != null ? List.copyOf(b.inputGuardrailResults) : List.of();
-        this.outputGuardrailResults = b.outputGuardrailResults != null ? List.copyOf(b.outputGuardrailResults) : List.of();
+        this.inputGuardrailResults = b.inputGuardrailResults != null
+                ? Collections.unmodifiableList(new ArrayList<>(b.inputGuardrailResults))
+                : Collections.<Object>emptyList();
+        this.outputGuardrailResults = b.outputGuardrailResults != null
+                ? Collections.unmodifiableList(new ArrayList<>(b.outputGuardrailResults))
+                : Collections.<Object>emptyList();
         this.maxTurns = b.maxTurns;
         this.currentTurn = b.currentTurn;
     }

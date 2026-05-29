@@ -8,7 +8,6 @@ package com.agent4j.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.agent4j.core.ModelInvoker;
 import com.agent4j.llm.*;
-import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -23,7 +22,6 @@ import org.springframework.web.client.RestTemplate;
  * 2、llmApiClient 根据provider不同，创建不同的apiClient实现类
  * 3、modelInvoker 将apiClient封装至modelInvoker，方便后续调用
  */
-@AutoConfiguration
 @Configuration
 @EnableConfigurationProperties(LlmProperties.class)
 public class LlmAutoConfiguration {

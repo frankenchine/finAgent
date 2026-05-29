@@ -12,6 +12,7 @@ import com.agent4j.api.OutputGuardrail;
 import com.agent4j.api.Tool;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -122,10 +123,10 @@ public class AgentDefinition {
         DefaultAgent(AgentDefinition d) {
             this.name = d.name;
             this.instructions = d.instructions;
-            this.tools = List.copyOf(d.tools);
-            this.handoffs = List.copyOf(d.handoffs);
-            this.inputGuardrails = List.copyOf(d.inputGuardrails);
-            this.outputGuardrails = List.copyOf(d.outputGuardrails);
+            this.tools = Collections.unmodifiableList(new ArrayList<>(d.tools));
+            this.handoffs = Collections.unmodifiableList(new ArrayList<>(d.handoffs));
+            this.inputGuardrails = Collections.unmodifiableList(new ArrayList<>(d.inputGuardrails));
+            this.outputGuardrails = Collections.unmodifiableList(new ArrayList<>(d.outputGuardrails));
             this.outputType = d.outputType;
         }
 

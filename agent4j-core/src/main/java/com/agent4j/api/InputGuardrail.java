@@ -7,6 +7,8 @@ package com.agent4j.api;
 
 import com.agent4j.model.Message;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -31,7 +33,9 @@ public interface InputGuardrail {
 
         public InputGuardrailResult(boolean passed, List<Message> messages, String rejectReason) {
             this.passed = passed;
-            this.messages = messages != null ? List.copyOf(messages) : List.of();
+            this.messages = messages != null
+                    ? Collections.unmodifiableList(new ArrayList<>(messages))
+                    : Collections.<Message>emptyList();
             this.rejectReason = rejectReason;
         }
 

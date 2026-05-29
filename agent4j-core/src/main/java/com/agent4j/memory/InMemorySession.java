@@ -7,6 +7,8 @@ package com.agent4j.memory;
 
 import com.agent4j.api.Session;
 import com.agent4j.model.Message;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -30,13 +32,13 @@ public class InMemorySession implements Session {
     @Override
     public List<Message> getItems(Integer limit) {
         if (limit == null || limit <= 0) {
-            return List.copyOf(items);
+            return Collections.unmodifiableList(new ArrayList<>(items));
         }
         int size = items.size();
         if (size <= limit) {
-            return List.copyOf(items);
+            return Collections.unmodifiableList(new ArrayList<>(items));
         }
-        return List.copyOf(items.subList(size - limit, size));
+        return Collections.unmodifiableList(new ArrayList<>(items.subList(size - limit, size)));
     }
 
     @Override

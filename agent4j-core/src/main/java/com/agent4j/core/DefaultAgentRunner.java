@@ -129,7 +129,8 @@ public class DefaultAgentRunner implements AgentRunner {
             ModelInvocationResponse.ToolCall firstCall = invResponse.getToolCalls().get(0);
 
             if (handoffResolver.isHandoffTool(firstCall.getName())) {
-                Agent nextAgent = handoffResolver.resolveByToolName(firstCall.getName()).orElseThrow();
+                Agent nextAgent = handoffResolver.resolveByToolName(firstCall.getName())
+                        .orElseThrow(() -> new IllegalStateException("Handoff target agent not found: " + firstCall.getName()));
                 currentAgent = nextAgent;
                 // Save assistant message with tool_calls for handoff
                 List<Message.ToolCallInfo> toolCallInfos = invResponse.getToolCalls().stream()

@@ -5,6 +5,9 @@
  */
 package com.agent4j.model;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,8 +27,12 @@ public final class ModelInvocationRequest {
 
     public ModelInvocationRequest(String systemPrompt, List<Message> messages, List<ToolSpec> toolSpecs) {
         this.systemPrompt = systemPrompt;
-        this.messages = messages != null ? List.copyOf(messages) : List.of();
-        this.toolSpecs = toolSpecs != null ? List.copyOf(toolSpecs) : List.of();
+        this.messages = messages != null
+                ? Collections.unmodifiableList(new ArrayList<>(messages))
+                : Collections.<Message>emptyList();
+        this.toolSpecs = toolSpecs != null
+                ? Collections.unmodifiableList(new ArrayList<>(toolSpecs))
+                : Collections.<ToolSpec>emptyList();
     }
 
     public String getSystemPrompt() {
@@ -51,7 +58,9 @@ public final class ModelInvocationRequest {
         public ToolSpec(String name, String description, Map<String, Object> parameters) {
             this.name = name;
             this.description = description;
-            this.parameters = parameters != null ? Map.copyOf(parameters) : Map.of();
+            this.parameters = parameters != null
+                    ? Collections.unmodifiableMap(new HashMap<>(parameters))
+                    : Collections.<String, Object>emptyMap();
         }
 
         public String getName() {

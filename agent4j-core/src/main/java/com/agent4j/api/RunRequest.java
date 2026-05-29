@@ -6,6 +6,7 @@
 package com.agent4j.api;
 
 import com.agent4j.model.Message;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -48,7 +49,9 @@ public final class RunRequest {
     @SuppressWarnings("unchecked")
     public List<Message> getInputAsMessages() {
         if (input instanceof String) {
-            return List.of(Message.user((String) input));
+            List<Message> messages = new ArrayList<>();
+            messages.add(Message.user((String) input));
+            return Collections.unmodifiableList(messages);
         }
         if (input instanceof List) {
             return (List<Message>) input;
