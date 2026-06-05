@@ -7,6 +7,9 @@ package com.agent4j.llm;
 
 import com.agent4j.model.ModelInvocationRequest;
 import com.agent4j.model.ModelInvocationResponse;
+import com.agent4j.model.ModelStreamEvent;
+
+import java.util.function.Consumer;
 
 /**
  * Interface for LLM API clients.
@@ -20,5 +23,14 @@ public interface LlmApiClient {
      * @return the model invocation response
      */
     ModelInvocationResponse invoke(ModelInvocationRequest request);
+
+    default ModelInvocationResponse invokeStream(ModelInvocationRequest request, Consumer<ModelStreamEvent> consumer) {
+        ModelInvocationResponse response = invoke(request);
+        if (consumer != null) {
+            consumer.accept(ModelStreamEvent.delta(response.getAssistantText()));
+            consumer.accept(ModelStreamEvent.completed(response));
+        }
+        return response;
+    }
 }
 

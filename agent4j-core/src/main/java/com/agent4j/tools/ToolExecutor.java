@@ -6,10 +6,18 @@
 package com.agent4j.tools;
 
 import com.agent4j.api.Tool;
+import com.agent4j.api.ToolExecutionConfig;
+import com.agent4j.api.ToolInvocationError;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Executes tool invocations by dispatching to the matching Tool from the agent's tool list.
@@ -17,10 +25,16 @@ import java.util.Optional;
 public class ToolExecutor {
 
     private final Map<String, Tool> toolsByName;
+    private final ToolExecutionConfig config;
 
     public ToolExecutor(List<Tool> tools) {
+        this(tools, ToolExecutionConfig.defaults());
+    }
+
+    public ToolExecutor(List<Tool> tools, ToolExecutionConfig config) {
         this.toolsByName = tools.stream()
                 .collect(java.util.stream.Collectors.toMap(Tool::getName, t -> t, (a, b) -> a));
+        this.config = config != null ? config : ToolExecutionConfig.defaults();
     }
 
     /**
@@ -38,14 +52,36 @@ public class ToolExecutor {
                 runContext
         );
         try {
-            return tool.invoke(ctx);
+            return invokeTool(tool, ctx);
         } catch (Exception e) {
-            return "Error: " + e.getMessage();
+            return config.formatError(new ToolInvocationError(invocation.getName(), e.getMessage(), e), ctx);
         }
     }
 
     public Optional<Tool> getTool(String name) {
         return Optional.ofNullable(toolsByName.get(name));
+    }
+
+    private Object invokeTool(Tool tool, Tool.ToolContext ctx) throws Exception {
+        if (config.getTimeoutMillis() <= 0) {
+            return tool.invoke(ctx);
+        }
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<Object> future = executor.submit(() -> tool.invoke(ctx));
+        try {
+            return future.get(config.getTimeoutMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            throw new RuntimeException("tool timed out after " + config.getTimeoutMillis() + " ms", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception) {
+                throw (Exception) cause;
+            }
+            throw new RuntimeException(cause);
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     private static final class ToolContextImpl implements Tool.ToolContext {

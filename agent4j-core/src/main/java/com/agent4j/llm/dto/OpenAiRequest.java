@@ -35,6 +35,9 @@ public class OpenAiRequest {
     @JsonProperty("tool_choice")
     private String toolChoice;
 
+    @JsonProperty("stream")
+    private Boolean stream;
+
     public String getModel() {
         return model;
     }
@@ -81,6 +84,14 @@ public class OpenAiRequest {
 
     public void setToolChoice(String toolChoice) {
         this.toolChoice = toolChoice;
+    }
+
+    public Boolean getStream() {
+        return stream;
+    }
+
+    public void setStream(Boolean stream) {
+        this.stream = stream;
     }
 
     /**

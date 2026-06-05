@@ -5,6 +5,8 @@
  */
 package com.agent4j.model;
 
+import com.agent4j.api.ModelSettings;
+
 import java.util.List;
 import java.util.Map;
 
@@ -21,11 +23,18 @@ public final class ModelInvocationRequest {
     private final String systemPrompt;
     private final List<Message> messages;
     private final List<ToolSpec> toolSpecs;
+    private final ModelSettings modelSettings;
 
     public ModelInvocationRequest(String systemPrompt, List<Message> messages, List<ToolSpec> toolSpecs) {
+        this(systemPrompt, messages, toolSpecs, null);
+    }
+
+    public ModelInvocationRequest(String systemPrompt, List<Message> messages, List<ToolSpec> toolSpecs,
+                                  ModelSettings modelSettings) {
         this.systemPrompt = systemPrompt;
         this.messages = messages != null ? List.copyOf(messages) : List.of();
         this.toolSpecs = toolSpecs != null ? List.copyOf(toolSpecs) : List.of();
+        this.modelSettings = modelSettings;
     }
 
     public String getSystemPrompt() {
@@ -38,6 +47,10 @@ public final class ModelInvocationRequest {
 
     public List<ToolSpec> getToolSpecs() {
         return toolSpecs;
+    }
+
+    public ModelSettings getModelSettings() {
+        return modelSettings;
     }
 
     /**

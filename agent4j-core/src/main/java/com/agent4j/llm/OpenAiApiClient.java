@@ -6,19 +6,25 @@
 package com.agent4j.llm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.agent4j.api.ModelSettings;
 import com.agent4j.config.LlmProperties;
 import com.agent4j.llm.dto.OpenAiRequest;
 import com.agent4j.llm.dto.OpenAiResponse;
 import com.agent4j.model.Message;
 import com.agent4j.model.ModelInvocationRequest;
 import com.agent4j.model.ModelInvocationResponse;
+import com.agent4j.model.ModelStreamEvent;
 import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -61,6 +67,63 @@ public class OpenAiApiClient implements LlmApiClient {
         }
     }
 
+    @Override
+    public ModelInvocationResponse invokeStream(ModelInvocationRequest request, Consumer<ModelStreamEvent> consumer) {
+        try {
+            OpenAiRequest openAiRequest = convertToOpenAiRequest(request);
+            openAiRequest.setStream(true);
+            String url = buildApiUrl();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setAccept(List.of(MediaType.TEXT_EVENT_STREAM));
+            headers.setBearerAuth(properties.getApiKey());
+
+            StringBuilder assistantText = new StringBuilder();
+            restTemplate.execute(
+                    url,
+                    HttpMethod.POST,
+                    clientHttpRequest -> {
+                        headers.forEach((name, values) -> values.forEach(value -> clientHttpRequest.getHeaders().add(name, value)));
+                        objectMapper.writeValue(clientHttpRequest.getBody(), openAiRequest);
+                    },
+                    clientHttpResponse -> {
+                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                                clientHttpResponse.getBody(),
+                                StandardCharsets.UTF_8
+                        ))) {
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                if (!line.startsWith("data:")) {
+                                    continue;
+                                }
+                                String data = line.substring("data:".length()).trim();
+                                if ("[DONE]".equals(data)) {
+                                    break;
+                                }
+                                String delta = extractContentDelta(data);
+                                if (delta != null && !delta.isEmpty()) {
+                                    assistantText.append(delta);
+                                    if (consumer != null) {
+                                        consumer.accept(ModelStreamEvent.delta(delta));
+                                    }
+                                }
+                            }
+                        }
+                        return null;
+                    }
+            );
+
+            ModelInvocationResponse response = new ModelInvocationResponse(assistantText.toString(), List.of());
+            if (consumer != null) {
+                consumer.accept(ModelStreamEvent.completed(response));
+            }
+            return response;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to stream OpenAI API: " + e.getMessage(), e);
+        }
+    }
+
     private String buildApiUrl() {
         String baseUrl = properties.getBaseUrl();
         if (baseUrl == null || baseUrl.isEmpty()) {
@@ -74,9 +137,17 @@ public class OpenAiApiClient implements LlmApiClient {
 
     private OpenAiRequest convertToOpenAiRequest(ModelInvocationRequest request) {
         OpenAiRequest openAiRequest = new OpenAiRequest();
-        openAiRequest.setModel(properties.getModel());
-        openAiRequest.setTemperature(properties.getTemperature());
-        openAiRequest.setMaxTokens(properties.getMaxTokens());
+        ModelSettings settings = request.getModelSettings();
+        openAiRequest.setModel(settings != null && settings.getModel() != null ? settings.getModel() : properties.getModel());
+        openAiRequest.setTemperature(settings != null && settings.getTemperature() != null
+                ? settings.getTemperature()
+                : properties.getTemperature());
+        openAiRequest.setMaxTokens(settings != null && settings.getMaxTokens() != null
+                ? settings.getMaxTokens()
+                : properties.getMaxTokens());
+        if (settings != null && settings.getToolChoice() != null) {
+            openAiRequest.setToolChoice(settings.getToolChoice());
+        }
 
         // Convert messages
         List<OpenAiRequest.Message> messages = new ArrayList<>();
@@ -152,6 +223,16 @@ public class OpenAiApiClient implements LlmApiClient {
         }
 
         return openAiRequest;
+    }
+
+    private String extractContentDelta(String json) throws Exception {
+        com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(json);
+        com.fasterxml.jackson.databind.JsonNode choices = root.path("choices");
+        if (!choices.isArray() || choices.isEmpty()) {
+            return null;
+        }
+        com.fasterxml.jackson.databind.JsonNode content = choices.get(0).path("delta").path("content");
+        return content.isTextual() ? content.asText() : null;
     }
 
     private OpenAiRequest.Tool convertToolSpec(ModelInvocationRequest.ToolSpec toolSpec) {
