@@ -60,4 +60,38 @@ class OpenAiApiClientStreamingTest {
         assertThat(response.getAssistantText()).isEqualTo("hello");
         server.verify();
     }
+
+    @Test
+    void streamsOpenAiToolCallDeltas() {
+        LlmProperties properties = new LlmProperties();
+        properties.setApiKey("test-key");
+        properties.setBaseUrl("https://api.example.test/v1");
+        properties.setModel("test-model");
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        OpenAiApiClient client = new OpenAiApiClient(properties, restTemplate, new ObjectMapper());
+        String body = ""
+                + "\n"
+                + "event: ignored\n"
+                + "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call-1\",\"function\":{\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":\"}}]}}]}\n\n"
+                + "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"agent4j\\\"}\"}}]}}]}\n\n"
+                + "data: [DONE]\n\n";
+
+        server.expect(requestTo("https://api.example.test/v1/chat/completions"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("{\"model\":\"test-model\",\"stream\":true}"))
+                .andRespond(withSuccess(body, MediaType.TEXT_EVENT_STREAM));
+
+        ModelInvocationResponse response = client.invokeStream(
+                new ModelInvocationRequest("", List.of(Message.user("hello")), List.of()),
+                event -> {
+                });
+
+        assertThat(response.getAssistantText()).isEmpty();
+        assertThat(response.getToolCalls()).hasSize(1);
+        assertThat(response.getToolCalls().get(0).getId()).isEqualTo("call-1");
+        assertThat(response.getToolCalls().get(0).getName()).isEqualTo("lookup");
+        assertThat(response.getToolCalls().get(0).getArgumentsJson()).isEqualTo("{\"q\":\"agent4j\"}");
+        server.verify();
+    }
 }

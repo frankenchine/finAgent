@@ -22,6 +22,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -80,6 +81,7 @@ public class OpenAiApiClient implements LlmApiClient {
             headers.setBearerAuth(properties.getApiKey());
 
             StringBuilder assistantText = new StringBuilder();
+            Map<Integer, StreamingToolCallBuilder> toolCallBuilders = new LinkedHashMap<>();
             restTemplate.execute(
                     url,
                     HttpMethod.POST,
@@ -101,7 +103,12 @@ public class OpenAiApiClient implements LlmApiClient {
                                 if ("[DONE]".equals(data)) {
                                     break;
                                 }
-                                String delta = extractContentDelta(data);
+                                String delta;
+                                try {
+                                    delta = applyStreamingDelta(data, toolCallBuilders);
+                                } catch (Exception e) {
+                                    throw new RuntimeException("Failed to parse OpenAI stream chunk", e);
+                                }
                                 if (delta != null && !delta.isEmpty()) {
                                     assistantText.append(delta);
                                     if (consumer != null) {
@@ -114,7 +121,10 @@ public class OpenAiApiClient implements LlmApiClient {
                     }
             );
 
-            ModelInvocationResponse response = new ModelInvocationResponse(assistantText.toString(), List.of());
+            List<ModelInvocationResponse.ToolCall> toolCalls = toolCallBuilders.values().stream()
+                    .map(StreamingToolCallBuilder::build)
+                    .collect(Collectors.toList());
+            ModelInvocationResponse response = new ModelInvocationResponse(assistantText.toString(), toolCalls);
             if (consumer != null) {
                 consumer.accept(ModelStreamEvent.completed(response));
             }
@@ -225,14 +235,42 @@ public class OpenAiApiClient implements LlmApiClient {
         return openAiRequest;
     }
 
-    private String extractContentDelta(String json) throws Exception {
+    private String applyStreamingDelta(String json, Map<Integer, StreamingToolCallBuilder> toolCallBuilders) throws Exception {
         com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(json);
         com.fasterxml.jackson.databind.JsonNode choices = root.path("choices");
         if (!choices.isArray() || choices.isEmpty()) {
             return null;
         }
-        com.fasterxml.jackson.databind.JsonNode content = choices.get(0).path("delta").path("content");
+        com.fasterxml.jackson.databind.JsonNode delta = choices.get(0).path("delta");
+        com.fasterxml.jackson.databind.JsonNode toolCalls = delta.path("tool_calls");
+        if (toolCalls.isArray()) {
+            for (com.fasterxml.jackson.databind.JsonNode toolCall : toolCalls) {
+                int index = toolCall.path("index").asInt(toolCallBuilders.size());
+                StreamingToolCallBuilder builder = toolCallBuilders.computeIfAbsent(index, ignored -> new StreamingToolCallBuilder());
+                if (toolCall.hasNonNull("id")) {
+                    builder.id = toolCall.path("id").asText();
+                }
+                com.fasterxml.jackson.databind.JsonNode function = toolCall.path("function");
+                if (function.hasNonNull("name")) {
+                    builder.name = function.path("name").asText();
+                }
+                if (function.hasNonNull("arguments")) {
+                    builder.arguments.append(function.path("arguments").asText());
+                }
+            }
+        }
+        com.fasterxml.jackson.databind.JsonNode content = delta.path("content");
         return content.isTextual() ? content.asText() : null;
+    }
+
+    private static final class StreamingToolCallBuilder {
+        private String id;
+        private String name;
+        private final StringBuilder arguments = new StringBuilder();
+
+        private ModelInvocationResponse.ToolCall build() {
+            return new ModelInvocationResponse.ToolCall(id, name, arguments.toString());
+        }
     }
 
     private OpenAiRequest.Tool convertToolSpec(ModelInvocationRequest.ToolSpec toolSpec) {

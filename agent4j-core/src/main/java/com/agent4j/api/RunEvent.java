@@ -16,11 +16,13 @@ public final class RunEvent {
         MODEL_STARTED,
         MODEL_DELTA,
         MODEL_COMPLETED,
+        MODEL_FAILED,
         TOOL_STARTED,
         TOOL_COMPLETED,
         HANDOFF,
         GUARDRAIL,
-        RUN_COMPLETED
+        RUN_COMPLETED,
+        RUN_FAILED
     }
 
     private final Type type;

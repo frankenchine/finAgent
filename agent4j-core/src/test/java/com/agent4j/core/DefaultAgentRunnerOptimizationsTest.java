@@ -7,6 +7,7 @@ package com.agent4j.core;
 
 import com.agent4j.api.Agent;
 import com.agent4j.api.ModelSettings;
+import com.agent4j.api.OutputGuardrail;
 import com.agent4j.api.RunConfig;
 import com.agent4j.api.RunEvent;
 import com.agent4j.api.RunHooks;
@@ -126,6 +127,55 @@ class DefaultAgentRunnerOptimizationsTest {
     }
 
     @Test
+    void runStreamExecutesToolCallsReturnedFromStream() {
+        CapturingInvoker invoker = new CapturingInvoker(
+                new ModelInvocationResponse("", List.of(new ModelInvocationResponse.ToolCall("call-1", "ping", "{}"))),
+                new ModelInvocationResponse("done", List.of())
+        );
+        DefaultAgentRunner runner = new DefaultAgentRunner(invoker);
+        Tool tool = FunctionToolRegistry.noArgTool("ping", "ping", () -> "pong");
+        Agent agent = new AgentDefinition().setName("assistant").addTool(tool).build();
+        List<RunEvent.Type> events = new ArrayList<>();
+
+        RunResult result = runner.runStream(agent, RunRequest.builder().input("use tool").build(), event -> events.add(event.getType()));
+
+        assertThat(invoker.streamInvocations).isEqualTo(2);
+        assertThat(result.getFinalOutput()).isEqualTo("done");
+        assertThat(events).contains(RunEvent.Type.MODEL_DELTA, RunEvent.Type.TOOL_STARTED, RunEvent.Type.TOOL_COMPLETED);
+    }
+
+    @Test
+    void runStreamEmitsFailureEventsAndRethrowsModelErrors() {
+        CapturingInvoker invoker = new CapturingInvoker();
+        invoker.streamError = new IllegalStateException("model down");
+        DefaultAgentRunner runner = new DefaultAgentRunner(invoker);
+        Agent agent = new AgentDefinition().setName("assistant").build();
+        List<RunEvent.Type> events = new ArrayList<>();
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                runner.runStream(agent, RunRequest.builder().input("hello").build(), event -> events.add(event.getType())))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("model down");
+
+        assertThat(events).contains(RunEvent.Type.MODEL_FAILED, RunEvent.Type.RUN_FAILED);
+    }
+
+    @Test
+    void outputGuardrailRejectionStillCompletesRun() {
+        CapturingInvoker invoker = new CapturingInvoker(new ModelInvocationResponse("bad", List.of()));
+        DefaultAgentRunner runner = new DefaultAgentRunner(invoker);
+        Agent agent = new AgentDefinition().setName("assistant")
+                .addOutputGuardrail((output, context) -> OutputGuardrail.OutputGuardrailResult.reject("nope"))
+                .build();
+        List<RunEvent.Type> events = new ArrayList<>();
+
+        RunResult result = runner.runStream(agent, RunRequest.builder().input("hello").build(), event -> events.add(event.getType()));
+
+        assertThat(result.getFinalOutput()).isEqualTo("Output rejected: nope");
+        assertThat(events).contains(RunEvent.Type.GUARDRAIL, RunEvent.Type.RUN_COMPLETED);
+    }
+
+    @Test
     void formatsToolErrorsWithRunConfig() {
         CapturingInvoker invoker = new CapturingInvoker(
                 new ModelInvocationResponse("", List.of(new ModelInvocationResponse.ToolCall("call-1", "fail", "{}"))),
@@ -155,6 +205,7 @@ class DefaultAgentRunnerOptimizationsTest {
         private final Queue<ModelInvocationResponse> responses = new ArrayDeque<>();
         private final List<ModelInvocationRequest> requests = new ArrayList<>();
         private List<String> streamDeltas = List.of();
+        private RuntimeException streamError;
         private int streamInvocations;
 
         private CapturingInvoker(ModelInvocationResponse... responses) {
@@ -171,12 +222,23 @@ class DefaultAgentRunnerOptimizationsTest {
         public ModelInvocationResponse invokeStream(ModelInvocationRequest request, Consumer<ModelStreamEvent> consumer) {
             requests.add(request);
             streamInvocations++;
+            if (streamError != null) {
+                throw streamError;
+            }
             StringBuilder text = new StringBuilder();
             for (String delta : streamDeltas) {
                 text.append(delta);
                 consumer.accept(ModelStreamEvent.delta(delta));
             }
-            ModelInvocationResponse response = new ModelInvocationResponse(text.toString(), List.of());
+            ModelInvocationResponse response;
+            if (text.length() > 0) {
+                response = new ModelInvocationResponse(text.toString(), List.of());
+            } else {
+                response = responses.isEmpty() ? new ModelInvocationResponse("", List.of()) : responses.remove();
+                if (!response.hasToolCalls() && response.getAssistantText() != null && !response.getAssistantText().isEmpty()) {
+                    consumer.accept(ModelStreamEvent.delta(response.getAssistantText()));
+                }
+            }
             consumer.accept(ModelStreamEvent.completed(response));
             return response;
         }

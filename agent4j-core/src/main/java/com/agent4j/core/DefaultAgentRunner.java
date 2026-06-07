@@ -67,6 +67,7 @@ public class DefaultAgentRunner implements AgentRunner {
         Object runContext = request.getContext();
         emit(runConfig, RunEvent.of(RunEvent.Type.AGENT_STARTED, currentAgent, currentAgent.getName(), null, 0));
 
+        try {
         if (!currentAgent.getInputGuardrails().isEmpty()) {
             for (InputGuardrail g : currentAgent.getInputGuardrails()) {
                 InputGuardrail.InputGuardrailResult result = g.process(messages, runContext);
@@ -202,6 +203,10 @@ public class DefaultAgentRunner implements AgentRunner {
                 .build();
         emit(runConfig, RunEvent.of(RunEvent.Type.RUN_COMPLETED, currentAgent, "run", runResult, currentTurn));
         return runResult;
+        } catch (RuntimeException e) {
+            emit(runConfig, RunEvent.of(RunEvent.Type.RUN_FAILED, currentAgent, "run", e, currentTurn));
+            throw e;
+        }
     }
 
     private Object processFinalOutput(Agent agent, RunConfig config, ModelInvocationResponse response,
@@ -226,14 +231,19 @@ public class DefaultAgentRunner implements AgentRunner {
     }
 
     private ModelInvocationResponse invokeModel(Agent agent, RunConfig config, ModelInvocationRequest request, int turn) {
-        if (!config.isStreamModel() || !request.getToolSpecs().isEmpty()) {
-            return modelInvoker.invoke(request);
-        }
-        return modelInvoker.invokeStream(request, event -> {
-            if (event.getType() == ModelStreamEvent.Type.DELTA) {
-                emit(config, RunEvent.of(RunEvent.Type.MODEL_DELTA, agent, "model", event.getDelta(), turn));
+        try {
+            if (!config.isStreamModel()) {
+                return modelInvoker.invoke(request);
             }
-        });
+            return modelInvoker.invokeStream(request, event -> {
+                if (event.getType() == ModelStreamEvent.Type.DELTA) {
+                    emit(config, RunEvent.of(RunEvent.Type.MODEL_DELTA, agent, "model", event.getDelta(), turn));
+                }
+            });
+        } catch (RuntimeException e) {
+            emit(config, RunEvent.of(RunEvent.Type.MODEL_FAILED, agent, "model", e, turn));
+            throw e;
+        }
     }
 
     private Class<?> resolveOutputType(Agent agent, RunConfig config) {
@@ -268,6 +278,9 @@ public class DefaultAgentRunner implements AgentRunner {
             case MODEL_COMPLETED:
                 hooks.onModelComplete(event);
                 break;
+            case MODEL_FAILED:
+                hooks.onModelFailed(event);
+                break;
             case MODEL_DELTA:
                 hooks.onModelDelta(event);
                 break;
@@ -282,6 +295,9 @@ public class DefaultAgentRunner implements AgentRunner {
                 break;
             case GUARDRAIL:
                 hooks.onGuardrail(event);
+                break;
+            case RUN_FAILED:
+                hooks.onRunFailed(event);
                 break;
             default:
                 hooks.onEvent(event);

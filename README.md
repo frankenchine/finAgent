@@ -317,6 +317,65 @@ mvn -q -DskipTests clean install
 
 ---
 
+## Spring MVC SSE streaming
+
+`agent4j-spring-boot-starter` auto-configures `AgentSseService` when an `AgentRunner`
+bean is available. Downstream Spring MVC applications can expose an agent run as
+`text/event-stream` directly:
+
+```java
+import com.agent4j.api.Agent;
+import com.agent4j.api.RunRequest;
+import com.agent4j.sse.AgentSseService;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+@RestController
+public class ChatStreamController {
+
+    private final AgentSseService agentSseService;
+    private final Agent agent;
+
+    public ChatStreamController(AgentSseService agentSseService, Agent agent) {
+        this.agentSseService = agentSseService;
+        this.agent = agent;
+    }
+
+    @GetMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream(@RequestParam String q) {
+        return agentSseService.stream(agent, RunRequest.builder().input(q).build());
+    }
+}
+```
+
+Browser clients can consume the stream with `EventSource`:
+
+```javascript
+const source = new EventSource("/chat/stream?q=hello");
+
+source.addEventListener("model_delta", event => {
+  const message = JSON.parse(event.data);
+  appendText(message.delta);
+});
+
+source.addEventListener("run_completed", event => {
+  const message = JSON.parse(event.data);
+  console.log("final output", message.data.finalOutput);
+  source.close();
+});
+
+source.addEventListener("run_failed", event => {
+  const message = JSON.parse(event.data);
+  console.error(message.error);
+  source.close();
+});
+```
+
+---
+
 ## 许可证
 
 本项目采用 **PolyForm Noncommercial License 1.0.0**。

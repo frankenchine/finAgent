@@ -21,11 +21,19 @@ public interface RunHooks {
         onEvent(event);
     }
 
+    default void onRunFailed(RunEvent event) {
+        onEvent(event);
+    }
+
     default void onModelStart(RunEvent event) {
         onEvent(event);
     }
 
     default void onModelComplete(RunEvent event) {
+        onEvent(event);
+    }
+
+    default void onModelFailed(RunEvent event) {
         onEvent(event);
     }
 
