@@ -376,12 +376,14 @@ source.addEventListener("run_failed", event => {
 
 ---
 
-## 许可证
+---
 
-本项目采用 **PolyForm Noncommercial License 1.0.0**。
+## License
 
-- **允许**：个人学习、研究、业余项目；教育机构、慈善机构、公共研究机构使用
-- **禁止**：未经授权的商业用途（公司产品、SaaS、内部营利性工具等）
+This project is licensed under the **Apache License 2.0**.
 
-商业使用请联系 [agent4j@sina.com] 获取商业许可。详细条款见仓库中的 `LICENSE` 文件。
+- Commercial use is allowed.
+- Modification and redistribution are allowed.
+- The software is provided on an "AS IS" basis, without warranties or conditions.
 
+See the [LICENSE](LICENSE) file for the full text.
